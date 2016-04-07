@@ -1,0 +1,506 @@
+<?php
+/**
+ * headless module
+ */
+function headless_menu() {
+  $items = array();
+  // Return JSON for individual nodes.
+  $items['api/%/%'] = array(
+    'page callback' => 'headless_type',
+    'access callback' => TRUE,
+    'page arguments' => array(1, 2)
+  );
+  // Return JSON for a list of nodes of type '%'.
+  $items['api/list/%'] = array(
+    'page callback' => 'headless_list',
+    'access callback' => TRUE,
+    'page arguments' => array(2)
+  );
+   // Return JSON for a list of records
+  $items['api/records/%/%'] = array(
+    'page callback' => 'headless_records',
+    'access callback' => TRUE,
+    'page arguments' => array(2, 3)
+  );
+   // Return JSON for a list of users
+  $items['api/users'] = array(
+    'page callback' => 'headless_users',
+    'access callback' => TRUE
+  );
+   // post request for user
+  $items['api/user'] = array(
+    'page callback' => 'headless_user',
+    'access callback' => TRUE
+  );
+   // post request for node
+  $items['api/node'] = array(
+    'page callback' => 'headless_node',
+    'access callback' => TRUE
+  );
+  return $items;
+}
+
+
+// GET Return JSON for individual nodes.
+function headless_type($type, $nid) {
+
+  if( array_key_exists('callback', $_GET) ) {
+    header('Content-Type: text/javascript; charset=utf8');
+    header('Access-Control-Allow-Origin: xxx');
+    header('Access-Control-Max-Age: 3628800');
+    header('Access-Control-Allow-Methods: GET');
+
+    $thenode = node_load($nid);
+        unset($thenode->vid);
+        unset($thenode->langcode);
+        unset($thenode->status);
+        unset($thenode->comment);
+        unset($thenode->promote);
+        unset($thenode->sticky);
+        unset($thenode->tnid);
+        unset($thenode->translate);
+        unset($thenode->revision_timestamp);
+        unset($thenode->revision_uid);
+        unset($thenode->log);
+        unset($thenode->body);
+        unset($thenode->path);
+        unset($thenode->name);
+        unset($thenode->picture);
+    $json_response = backdrop_json_encode($thenode);
+    $callback = $_GET['callback'];
+    echo $callback.'('.$json_response.');';
+      backdrop_exit();
+  }
+
+  else {
+    $array = array("no results");
+    echo backdrop_json_encode($array);
+    backdrop_exit();
+  }
+
+}
+
+// GET Get a list of nodes of a certain type
+function headless_list($type) {
+
+    if( array_key_exists('callback', $_GET) ) {
+    header('Content-Type: text/javascript; charset=utf8');
+    header('Access-Control-Allow-Origin: xxx');
+    header('Access-Control-Max-Age: 3628800');
+    header('Access-Control-Allow-Methods: GET');
+
+    $type = preg_replace("/[^a-zA-Z0-9_]/", '', $type);
+    $sql = "select nid from node where type = :type";
+    $result = db_query($sql, array(':type' => $type));
+    $data = array();
+    foreach($result as $r) {
+    $thenode = node_load($r->nid);
+        unset($thenode->vid);
+        unset($thenode->langcode);
+        unset($thenode->status);
+        unset($thenode->comment);
+        unset($thenode->promote);
+        unset($thenode->sticky);
+        unset($thenode->tnid);
+        unset($thenode->translate);
+        unset($thenode->revision_timestamp);
+        unset($thenode->revision_uid);
+        unset($thenode->log);
+        unset($thenode->body);
+        unset($thenode->path);
+        unset($thenode->name);
+        unset($thenode->picture);
+    $data[] = $thenode;
+  }
+
+    $json_response = backdrop_json_encode($data);
+    $callback = $_GET['callback'];
+    echo $callback.'('.$json_response.');';
+      backdrop_exit();
+  }
+
+  else {
+    $array = array("no results");
+    echo backdrop_json_encode($array);
+    backdrop_exit();
+  }
+
+
+}
+
+// GET Get a list of records matching passed in descriptors
+function headless_records($where, $thevalue) {
+
+  if( array_key_exists('callback', $_GET) ) {
+    header('Content-Type: text/javascript; charset=utf8');
+    header('Access-Control-Allow-Origin: xxx');
+    header('Access-Control-Max-Age: 3628800');
+    header('Access-Control-Allow-Methods: GET');
+
+    $where = preg_replace("/[^a-zA-Z0-9_]/", '', $where);
+    $thevalue = preg_replace("/[^a-zA-Z0-9_\-]/", '', $thevalue);
+    if ($where == "all") {
+      $query = new EntityFieldQuery();
+      $entities = $query->entityCondition('entity_type', 'node')
+      ->propertyCondition('type', 'record')
+      ->propertyCondition('status', 1)
+      ->range(0,100)
+      ->execute();
+    }
+    else {
+      $query = new EntityFieldQuery();
+      $entities = $query->entityCondition('entity_type', 'node')
+      ->propertyCondition('type', 'record')
+      ->fieldCondition($where, 'value', $thevalue, '=')
+      ->propertyCondition('status', 1)
+      ->range(0,100)
+      ->execute();
+    }
+
+    if (empty($entities['node'])) {
+      $array = array("no results");
+      echo backdrop_json_encode($array);
+      backdrop_exit();
+    }
+    else {
+      foreach($entities['node'] as $r) {
+        $thenode = node_load($r->nid);
+        unset($thenode->vid);
+        unset($thenode->langcode);
+        unset($thenode->status);
+        unset($thenode->comment);
+        unset($thenode->promote);
+        unset($thenode->sticky);
+        unset($thenode->tnid);
+        unset($thenode->translate);
+        unset($thenode->revision_timestamp);
+        unset($thenode->revision_uid);
+        unset($thenode->log);
+        unset($thenode->body);
+        unset($thenode->path);
+        unset($thenode->name);
+        unset($thenode->picture);
+
+        if ($where == "field_record_id") {
+          $thenode->is_full_record_id = "yes";
+        }
+        $data[] = $thenode;
+      }
+
+    $json_response = backdrop_json_encode($data);
+    $callback = $_GET['callback'];
+    echo $callback.'('.$json_response.');';
+      backdrop_exit();
+  }
+
+}
+  else {
+    $array = array("no results");
+    echo backdrop_json_encode($array);
+    backdrop_exit();
+  }
+}
+
+// GET Get a list of users
+function headless_users() {
+
+  if( array_key_exists('callback', $_GET) ) {
+    header('Content-Type: text/javascript; charset=utf8');
+    header('Access-Control-Allow-Origin: xxx');
+    header('Access-Control-Max-Age: 3628800');
+    header('Access-Control-Allow-Methods: GET');
+
+  $users = entity_load('user', $ids = FALSE);
+  $operators = array();
+
+  // do not use this in your own website -- this is a temporary workaround
+  $max = sizeof($users);
+  for($i = 1; $i < 7; $i++)
+  {
+    if ($i == 2 || $i == 3 || $i == 4) {
+      continue;
+    }
+    $operators[$i]["id"] = $users[$i]->uid;
+    $operators[$i]["username"] = $users[$i]->name;
+    $operators[$i]["email"] = $users[$i]->mail;
+    $operators[$i]["administrationEmail"] = $users[$i]->field_admin_email["und"][0]["email"];
+    $operators[$i]["heavyVehicleQualified"] = $users[$i]->field_heavy_vehicle["und"][0]["value"];
+    $operators[$i]["lightVehicleQualified"] = $users[$i]->field_light_vehicle["und"][0]["value"];
+    $operators[$i]["machineryQualified"] = $users[$i]->field_machinery["und"][0]["value"];
+    $operators[$i]["isAdmin"] = $users[$i]->field_admin["und"][0]["value"];
+  }
+
+  $json_response = backdrop_json_encode($operators);
+    $callback = $_GET['callback'];
+    echo $callback.'('.$json_response.');';
+      backdrop_exit();
+  }
+
+  else {
+    $array = array("no results");
+    echo backdrop_json_encode($array);
+    backdrop_exit();
+  }
+
+}
+
+// POST post request for single user
+function headless_user() {
+
+  header('Access-Control-Allow-Origin: xxx');
+  header('Access-Control-Max-Age: 3628800');
+  header('Access-Control-Allow-Methods: POST');
+
+  $theuser = user_load($_POST['id']);
+  if (empty($theuser)) {
+    //save new user
+    $array = array("new users coming soon");
+    echo backdrop_json_encode($array);
+  }
+  else {
+        // save to existing user
+    if (!empty($_POST['username'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_]/", '', $_POST['username']);
+      $theuser->name = $sanitized;
+    }
+
+    if (!empty($_POST['email'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_.@\-]/", '', $_POST['email']);
+      $theuser->mail = $sanitized;
+    }
+
+    if (!empty($_POST['admin_email'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_.@\-]/", '', $_POST['admin_email']);
+      $theuser->field_admin_email["und"][0]["email"] = $sanitized;
+    }
+
+    if ($_POST['isadmin'] == "true") {
+      $theuser->field_admin["und"][0]["value"] = 1;
+    }
+    else {
+     $theuser->field_admin["und"][0]["value"] = 0;
+    }
+
+    if ($_POST['hvq'] == "true") {
+       $theuser->field_heavy_vehicle["und"][0]["value"] = 1;
+    }
+    else {
+      $theuser->field_heavy_vehicle["und"][0]["value"] = 0;
+    }
+
+    if ($_POST['lvq'] == "true") {
+      $theuser->field_light_vehicle["und"][0]["value"] = 1;
+    }
+    else {
+     $theuser->field_light_vehicle["und"][0]["value"] = 0;
+    }
+
+    if ($_POST['mq'] == "true") {
+      $theuser->field_machinery["und"][0]["value"] = 1;
+    }
+    else {
+     $theuser->field_machinery["und"][0]["value"] = 0;
+    }
+
+    $theuser->save();
+    $array = array("user saved successfully");
+    echo backdrop_json_encode($array);
+  }
+backdrop_exit();
+}
+
+// POST post request for single node
+function headless_node() {
+
+    header('Access-Control-Allow-Origin: xxx');
+    header('Access-Control-Max-Age: 3628800');
+    header('Access-Control-Allow-Methods: POST');
+
+    if (!empty($_POST['record_id'])) {
+    $node           = entity_create('node', array('type' => 'record'));
+    $node->uid      = 1;
+    $node->language = LANGUAGE_NONE;
+    $node->langcode = "und";
+    $node->status = 1;
+    $node->comment = 0;
+    $node->promote = 0;
+    $node->sticky = 0;
+    $node->path["auto"] = TRUE;
+    $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['record_id']);
+    $node->title = $sanitized;
+    $date = new DateTime();
+    $node->field_record_date["und"][0]["value"] = $date->getTimestamp();
+
+    if (!empty($_POST['hours'])) {
+      $sanitized = preg_replace("/[^0-9.]/", '', $_POST['hours']);
+      $node->field_hours["und"][0]["value"] = $sanitized;
+    }
+    else {
+      $node->field_hours["und"][0]["value"] = 1;
+    }
+
+    if (!empty($_POST['kms'])) {
+      $sanitized = preg_replace("/[^0-9.]/", '', $_POST['kms']);
+      $node->field_kms["und"][0]["value"] = $sanitized;
+    }
+    else {
+      $node->field_kms["und"][0]["value"] = 1;
+    }
+
+    if (!empty($_POST['record_id'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['record_id']);
+      $node->field_record_id["und"][0]["value"] = $sanitized;
+    }
+    else {
+      $array = array("missing record id -- exiting without save");
+      echo backdrop_json_encode($array);
+      backdrop_exit();
+    }
+
+    if (!empty($_POST['registration'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['registration']);
+      $node->field_registration["und"][0]["value"] = $sanitized;
+    }
+    else {
+      $array = array("missing vehicle registration -- exiting without save");
+      echo backdrop_json_encode($array);
+      backdrop_exit();
+    }
+
+    if (!empty($_POST['operator'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['operator']);
+      $node->field_operator["und"][0]["value"] = $sanitized;
+    }
+    else {
+      $array = array("missing operator -- exiting without save");
+      echo backdrop_json_encode($array);
+      backdrop_exit();
+    }
+
+    if (!empty($_POST['fault'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['fault']);
+      $node->field_fault["und"][0]["value"] = $sanitized;
+    }
+
+    if ($_POST['passed'] == "false") {
+      $node->field_passed["und"][0]["value"] = 0;
+    }
+    else {
+      $node->field_passed["und"][0]["value"] = 1;
+    }
+
+    if (!empty($_POST['details'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['details']);
+      $node->field_details["und"][0]["value"] = $sanitized;
+    }
+
+    if (!empty($_POST['photo'])) {
+      $node->field_photo["und"][0]["value"] = $_POST['photo'];
+    }
+
+    $node->save();
+    $array = array("node saved successfully");
+    echo backdrop_json_encode($array);
+    backdrop_exit();
+  }
+
+  else {
+  $thenode = node_load($_POST['nid']);
+  if (empty($thenode)) {
+    //save new node
+      $node           = entity_create('node', array('type' => 'vehicle'));
+      $node->uid      = 1;
+      $node->language = LANGUAGE_NONE;
+      $node->langcode = "und";
+      $node->status = 1;
+      $node->comment = 0;
+      $node->promote = 0;
+      $node->sticky = 0;
+      $node->path["auto"] = TRUE;
+
+      if (!empty($_POST['name'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['name']);
+      $node->title = $sanitized;
+    }
+    else {
+      $node->title = "new vehicle";
+    }
+
+    if (!empty($_POST['registration'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['registration']);
+      $node->field_registration["und"][0]["value"] = $sanitized;
+    }
+    else {
+      $node->title = "new vehicle";
+    }
+
+    if (!empty($_POST['administrator_email'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_.@\-]/", '', $_POST['administrator_email']);
+      $node->field_admin_email["und"][0]["email"] = $sanitized;
+    }
+    else {
+      $node->field_admin_email["und"][0]["email"] = "andrewpmartha@gmail.com";
+    }
+
+    if (!empty($_POST['category'])) {
+      $sanitized = preg_replace("/[^0-9]/", '', $_POST['category']);
+      $node->field_category["und"][0]["tid"] = $sanitized;
+    }
+    else {
+      $node->field_category["und"][0]["tid"] = "1";
+    }
+
+    if (!empty($_POST['location'])) {
+      $sanitized = preg_replace("/[^0-9]/", '', $_POST['location']);
+      $node->field_location["und"][0]["tid"] = $sanitized;
+    }
+    else {
+      $node->field_location["und"][0]["tid"] = "4";
+    }
+
+    if (!empty($_POST['photo_url'])) {
+      $node->field_photo["und"][0]["value"] = $_POST['photo_url'];
+    }
+
+
+      $node->save();
+  }
+  else {
+        // save to existing node
+    if (!empty($_POST['name'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['name']);
+      $thenode->title = $sanitized;
+    }
+
+    if (!empty($_POST['registration'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_\-]/", '', $_POST['registration']);
+      $thenode->field_registration["und"][0]["value"] = $sanitized;
+    }
+
+    if (!empty($_POST['administrator_email'])) {
+      $sanitized = preg_replace("/[^a-zA-Z0-9_.@\-]/", '', $_POST['administrator_email']);
+      $thenode->field_admin_email["und"][0]["email"] = $sanitized;
+    }
+
+    if (!empty($_POST['category'])) {
+      $sanitized = preg_replace("/[^0-9]/", '', $_POST['category']);
+      $thenode->field_category["und"][0]["tid"] = $sanitized;
+    }
+
+    if (!empty($_POST['location'])) {
+      $sanitized = preg_replace("/[^0-9]/", '', $_POST['location']);
+      $thenode->field_location["und"][0]["tid"] = $sanitized;
+    }
+
+    if (!empty($_POST['photo_url'])) {
+      $thenode->field_photo["und"][0]["value"] = $_POST['photo_url'];
+    }
+
+    $thenode->save();
+    $array = array("node saved successfully");
+    echo backdrop_json_encode($array);
+  }
+
+  }
+
+}
